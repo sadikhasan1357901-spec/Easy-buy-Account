@@ -552,6 +552,30 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
 
     )
+    db.commit()
+
+    await update.message.reply_text(
+        "✅ Transaction ID জমা হয়েছে।\n\nAdmin যাচাই করার পর Balance যোগ হবে।"
+    )
+
+    text = f"""
+🆕 নতুন Deposit Request
+
+👤 {user.first_name}
+
+🆔 {user.id}
+
+🧾 TRX ID:
+<code>{trx}</code>
+
+Status : Pending
+"""
+
+    await context.bot.send_message(
+        ADMIN_ID,
+        text,
+        parse_mode="HTML"
+    )
 
 # ==========================================================
 # PENDING DEPOSIT LIST
@@ -655,39 +679,71 @@ TRX : {trx}
         reply_markup=InlineKeyboardMarkup(keyboard)
 
     )
-
-
-
-
     
+# ==========================================================
+# APPROVE DEPOSIT
+# ==========================================================
 
-    
+async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    if query.from_user.id != ADMIN_ID:
+        return
+
+    payment_id = int(query.data.split("_")[1])
+
+    cursor.execute(
+        "SELECT user_id, amount FROM payments WHERE id=?",
+        (payment_id,)
+    )
+
+    data = cursor.fetchone()
+
+    if not data:
+
+        await query.answer("Payment Not Found", show_alert=True)
+        return
+
+    user_id = data[0]
+    amount = data[1]
+
+    cursor.execute(
+        "UPDATE users SET balance = balance + ? WHERE user_id=?",
+        (amount, user_id)
+    )
+
+    cursor.execute(
+        "UPDATE payments SET status='Approved' WHERE id=?",
+        (payment_id,)
+    )
+
     db.commit()
 
-    await update.message.reply_text(
-        "✅ Transaction ID জমা হয়েছে।\n\nAdmin যাচাই করার পর Balance যোগ হবে।"
-    )
+    try:
 
-    text = f"""
-🆕 নতুন Deposit Request
+        await context.bot.send_message(
 
-👤 {user.first_name}
+            chat_id=user_id,
 
-🆔 {user.id}
+            text=f"""
+✅ Deposit Approved
 
-🧾 TRX ID:
-<code>{trx}</code>
+💰 Amount : {amount} BDT
 
-Status : Pending
+আপনার Balance সফলভাবে যোগ হয়েছে।
 """
 
-    await context.bot.send_message(
-        ADMIN_ID,
-        text,
-        parse_mode="HTML"
+        )
+
+    except:
+        pass
+
+    await query.message.edit_text(
+        "✅ Deposit Approved Successfully."
     )
-
-
 # ==========================================================
 # RUN BOT
 # ==========================================================
