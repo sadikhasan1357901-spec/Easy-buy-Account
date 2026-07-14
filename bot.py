@@ -284,6 +284,126 @@ async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
             show_alert=True
 
         )
+
+# ==========================================================
+# PROFILE
+# ==========================================================
+
+async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+
+    cursor.execute(
+        "SELECT balance, joined FROM users WHERE user_id=?",
+        (user.id,)
+    )
+
+    data = cursor.fetchone()
+
+    balance = data[0] if data else 0
+    joined = data[1] if data else "Unknown"
+
+    text = f"""
+👤 <b>Your Profile</b>
+
+🆔 User ID : <code>{user.id}</code>
+
+🙍 Name : {user.first_name}
+
+📛 Username : @{user.username if user.username else 'None'}
+
+💰 Balance : {balance} BDT
+
+📅 Joined : {joined}
+"""
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "⬅ Back",
+                callback_data="back_home"
+            )
+        ]
+    ]
+
+    await query.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# ==========================================================
+# BALANCE
+# ==========================================================
+
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    amount = get_balance(query.from_user.id)
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "➕ Add Balance",
+                callback_data="deposit"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "⬅ Back",
+                callback_data="back_home"
+            )
+        ]
+    ]
+
+    await query.message.edit_text(
+        f"💰 Your Current Balance\n\n<b>{amount} BDT</b>",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# ==========================================================
+# BACK HOME
+# ==========================================================
+
+async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [
+
+        [InlineKeyboardButton("🛒 Buy Account", callback_data="buy")],
+
+        [
+            InlineKeyboardButton("💰 Balance", callback_data="balance"),
+            InlineKeyboardButton("👤 Profile", callback_data="profile")
+        ],
+
+        [InlineKeyboardButton("➕ Add Balance", callback_data="deposit")],
+
+        [InlineKeyboardButton("📦 My Orders", callback_data="orders")],
+
+        [InlineKeyboardButton("♻ Replace", callback_data="replace")],
+
+        [
+            InlineKeyboardButton("☎ Support", url="https://t.me/Junaid_Hasan_Admin"),
+            InlineKeyboardButton("📢 Community", url=COMMUNITY)
+        ]
+    ]
+
+    await query.message.edit_text(
+        "🏠 <b>Easy Buy Account</b>\n\nSelect an option:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 # ==========================================================
 # RUN BOT
 # ==========================================================
