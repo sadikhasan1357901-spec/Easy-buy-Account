@@ -851,6 +851,22 @@ app.add_handler(
     )
 
 )
+app.add_handler(
+    CallbackQueryHandler(
+        approve_deposit,
+        pattern=r"^approve_\d+$"
+    )
+)
+
+app.add_handler(
+    CallbackQueryHandler(
+        reject_deposit,
+        pattern=r"^reject_\d+$"
+    )
+)
+
+
+
 
 
 
