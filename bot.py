@@ -497,6 +497,15 @@ app.add_handler(
     )
 )
 
+app.add_handler(
+    CallbackQueryHandler(
+        deposit,
+        pattern="deposit"
+    )
+)
+
+
+
 print("Easy Buy Account Started...")
 
 app.run_polling()
