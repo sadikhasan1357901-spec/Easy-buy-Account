@@ -26,13 +26,13 @@ from telegram.ext import (
 # CONFIG
 # ==========================================================
 
-BOT_TOKEN = "YOUR_USER_BOT_TOKEN"
+BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
 
 ADMIN_ID = 8970306340
 
 FORCE_JOIN = "@easy_buy_account"
 
-SUPPORT = "@YOUR_SUPPORT"
+SUPPORT = "@Junaid_Hasan_Admin"
 
 COMMUNITY = "https://t.me/easy_buy_account"
 
@@ -187,3 +187,218 @@ date TEXT
 db.commit()
 
 print("Database Ready...")
+
+
+
+
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes
+)
+
+# ==========================
+# CONFIG
+# ==========================
+
+BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
+
+ADMIN_ID = 8970306340
+
+CHANNEL_USERNAME = "@easy_buy_account"
+
+# ==========================
+# START
+# ==========================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    try:
+        member = await context.bot.get_chat_member(
+            CHANNEL_USERNAME,
+            user.id
+        )
+
+        if member.status in ["left", "kicked"]:
+
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Channel",
+                        url="https://t.me/easy_buy_account"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "✅ I've Joined",
+                        callback_data="check_join"
+                    )
+                ]
+            ]
+
+            await update.message.reply_text(
+                "🔒 প্রথমে আমাদের চ্যানেলে Join করুন।",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return
+
+    except:
+        pass
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "🛒 Buy Account",
+                callback_data="buy"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "💰 Balance",
+                callback_data="balance"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "➕ Add Balance",
+                callback_data="deposit"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📦 My Orders",
+                callback_data="orders"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "👤 Profile",
+                callback_data="profile"
+            )
+        ]
+
+    ]
+
+    await update.message.reply_text(
+
+        f"👋 Welcome {user.first_name}\n\n"
+        f"🛍 Easy Buy Account Store",
+
+        reply_markup=InlineKeyboardMarkup(keyboard)
+
+    )
+
+# ==========================
+# CHECK JOIN
+# ==========================
+
+async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    user = query.from_user
+
+    try:
+
+        member = await context.bot.get_chat_member(
+            CHANNEL_USERNAME,
+            user.id
+        )
+
+        if member.status not in ["left", "kicked"]:
+
+            keyboard = [
+
+                [
+                    InlineKeyboardButton(
+                        "🛒 Buy Account",
+                        callback_data="buy"
+                    )
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        "💰 Balance",
+                        callback_data="balance"
+                    )
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        "➕ Add Balance",
+                        callback_data="deposit"
+                    )
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        "📦 My Orders",
+                        callback_data="orders"
+                    )
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        "👤 Profile",
+                        callback_data="profile"
+                    )
+                ]
+
+            ]
+
+            await query.message.edit_text(
+
+                "✅ Verification Successful",
+
+                reply_markup=InlineKeyboardMarkup(keyboard)
+
+            )
+
+        else:
+
+            await query.answer(
+                "Join Channel First",
+                show_alert=True
+            )
+
+    except:
+
+        await query.answer(
+            "Try Again",
+            show_alert=True
+        )
+
+# ==========================
+# MAIN
+# ==========================
+
+app = Application.builder().token(BOT_TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+
+app.add_handler(
+    CallbackQueryHandler(
+        check_join,
+        pattern="check_join"
+    )
+)
+
+print("Bot Running...")
+
+app.run_polling()
