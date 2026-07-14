@@ -65,17 +65,19 @@ db = sqlite3.connect(
 cursor = db.cursor()
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS users(
+CREATE TABLE IF NOT EXISTS payments(
 
-user_id INTEGER PRIMARY KEY,
+id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-name TEXT,
+user_id INTEGER,
 
-username TEXT,
+trx TEXT UNIQUE,
 
-balance INTEGER DEFAULT 0,
+amount INTEGER,
 
-joined TEXT
+screenshot TEXT,
+
+status TEXT
 
 )
 """)
