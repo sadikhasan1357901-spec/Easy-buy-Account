@@ -42,6 +42,8 @@ BKASH_NUMBER = "01XXXXXXXXX"
 
 NAGAD_NUMBER = "01XXXXXXXXX"
 
+WAIT_TRX = 1
+
 # ==========================================================
 # LOG
 # ==========================================================
@@ -456,6 +458,62 @@ async def deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+async def submit_trx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["waiting_trx"] = True
+
+    await query.message.reply_text(
+        "🧾 আপনার Transaction ID লিখে পাঠান।"
+    )
+
+async def receive_trx(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.user_data.get("waiting_trx"):
+        return
+
+    context.user_data["waiting_trx"] = False
+
+    trx = update.message.text
+
+    user = update.effective_user
+
+    cursor.execute(
+        "INSERT INTO payments(user_id,trx,amount,status) VALUES(?,?,?,?)",
+        (
+            user.id,
+            trx,
+            0,
+            "Pending"
+        )
+    )
+
+    db.commit()
+
+    await update.message.reply_text(
+        "✅ Transaction ID জমা হয়েছে।\n\nAdmin যাচাই করার পর Balance যোগ হবে।"
+    )
+
+    text = f"""
+🆕 নতুন Deposit Request
+
+👤 {user.first_name}
+
+🆔 {user.id}
+
+🧾 TRX ID:
+<code>{trx}</code>
+
+Status : Pending
+"""
+
+    await context.bot.send_message(
+        ADMIN_ID,
+        text,
+        parse_mode="HTML"
+    )
 
 
 # ==========================================================
@@ -506,7 +564,19 @@ app.add_handler(
     )
 )
 
+app.add_handler(
+    CallbackQueryHandler(
+        submit_trx,
+        pattern="submit_trx"
+    )
+)
 
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        receive_trx
+    )
+)
 
 print("Easy Buy Account Started...")
 
