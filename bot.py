@@ -1,17 +1,22 @@
 # ==========================================================
 # Easy Buy Account
-# User Bot
-# Version : 0.1
+# Version : v1.0
+# User + Admin Bot
+# Python Telegram Bot v21.11
+# SQLite Database
 # ==========================================================
 
-import logging
 import sqlite3
+import logging
+from datetime import datetime
 
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup
 )
+
+from telegram.constants import ParseMode
 
 from telegram.ext import (
     Application,
@@ -23,35 +28,43 @@ from telegram.ext import (
 )
 
 # ==========================================================
-# CONFIG
+# BOT CONFIG
 # ==========================================================
 
 BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
 
 ADMIN_ID = 8970306340
 
-FORCE_JOIN = "@easy_buy_account"
+CHANNEL_USERNAME = "@easy_buy_account"
+
+CHANNEL_LINK = "https://t.me/easy_buy_account"
 
 SUPPORT = "@Junaid_Hasan_Admin"
 
-COMMUNITY = "https://t.me/easy_buy_account"
-
 DATABASE = "easybuy.db"
 
-BKASH_NUMBER = "01XXXXXXXXX"
+BOT_NAME = "Easy Buy Account"
 
-NAGAD_NUMBER = "01XXXXXXXXX"
-
-WAIT_TRX = 1
+VERSION = "1.0"
 
 # ==========================================================
-# LOG
+# LOGGING
 # ==========================================================
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    level=logging.INFO
 )
+
+logger = logging.getLogger(__name__)
+
+print("=" * 50)
+print(" Easy Buy Account")
+print(" Version :", VERSION)
+print("=" * 50)
+print("Database :", DATABASE)
+print("Starting Bot...")
+print("=" * 50)
 
 # ==========================================================
 # DATABASE
