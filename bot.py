@@ -36,6 +36,10 @@ COMMUNITY = "https://t.me/easy_buy_account"
 
 DATABASE = "easybuy.db"
 
+BKASH_NUMBER = "01XXXXXXXXX"
+
+NAGAD_NUMBER = "01XXXXXXXXX"
+
 # ==========================================================
 # LOG
 # ==========================================================
