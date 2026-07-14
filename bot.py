@@ -490,6 +490,78 @@ async def receive_trx(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     )
 
+
+# ==========================================================
+# ADMIN PANEL
+# ==========================================================
+
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    if user.id != ADMIN_ID:
+
+        await update.message.reply_text(
+            "❌ You are not Admin."
+        )
+        return
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "💰 Pending Deposits",
+                callback_data="pending_deposit"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📦 Products",
+                callback_data="products"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📊 Statistics",
+                callback_data="stats"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📢 Broadcast",
+                callback_data="broadcast"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⚙ Settings",
+                callback_data="settings"
+            )
+        ]
+
+    ]
+
+    await update.message.reply_text(
+
+        "👨‍💻 Easy Buy Account\n\nAdmin Panel",
+
+        reply_markup=InlineKeyboardMarkup(keyboard)
+
+    )
+
+
+
+
+
+
+
+    
+
+    
     db.commit()
 
     await update.message.reply_text(
