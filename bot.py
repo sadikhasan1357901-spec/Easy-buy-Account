@@ -63,6 +63,23 @@ db = sqlite3.connect(
 )
 
 cursor = db.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users(
+
+user_id INTEGER PRIMARY KEY,
+
+name TEXT,
+
+username TEXT,
+
+balance INTEGER DEFAULT 0,
+
+joined TEXT
+
+)
+""")
+
+db.commit()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS payments(
