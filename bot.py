@@ -284,3 +284,26 @@ async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
             show_alert=True
 
         )
+# ==========================================================
+# RUN BOT
+# ==========================================================
+
+app = Application.builder().token(BOT_TOKEN).build()
+
+app.add_handler(
+    CommandHandler(
+        "start",
+        start
+    )
+)
+
+app.add_handler(
+    CallbackQueryHandler(
+        check_join,
+        pattern="check_join"
+    )
+)
+
+print("Easy Buy Account Started...")
+
+app.run_polling()
