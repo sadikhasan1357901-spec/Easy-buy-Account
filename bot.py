@@ -404,6 +404,8 @@ async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+
 # ==========================================================
 # RUN BOT
 # ==========================================================
@@ -421,6 +423,27 @@ app.add_handler(
     CallbackQueryHandler(
         check_join,
         pattern="check_join"
+    )
+)
+
+app.add_handler(
+    CallbackQueryHandler(
+        profile,
+        pattern="profile"
+    )
+)
+
+app.add_handler(
+    CallbackQueryHandler(
+        balance,
+        pattern="balance"
+    )
+)
+
+app.add_handler(
+    CallbackQueryHandler(
+        back_home,
+        pattern="back_home"
     )
 )
 
