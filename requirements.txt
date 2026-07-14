@@ -1,4 +1,3 @@
 python-telegram-bot==21.11
 aiosqlite
 python-dotenv
-python-telegram-bot==20.7
