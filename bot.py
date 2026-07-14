@@ -115,3 +115,172 @@ def get_balance(user_id):
         return data[0]
 
     return 0
+# ==========================================================
+# START COMMAND
+# ==========================================================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    register_user(user)
+
+    try:
+
+        member = await context.bot.get_chat_member(
+            FORCE_JOIN,
+            user.id
+        )
+
+        if member.status in ["left", "kicked"]:
+
+            keyboard = [
+
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Channel",
+                        url=COMMUNITY
+                    )
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        "✅ I've Joined",
+                        callback_data="check_join"
+                    )
+                ]
+
+            ]
+
+            await update.message.reply_text(
+
+                "🔒 Please join our channel first.",
+
+                reply_markup=InlineKeyboardMarkup(keyboard)
+
+            )
+
+            return
+
+    except Exception:
+
+        pass
+
+    await show_main_menu(update.message)
+
+
+# ==========================================================
+# MAIN MENU
+# ==========================================================
+
+async def show_main_menu(message):
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "🛒 Buy Account",
+                callback_data="buy"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "💰 Balance",
+                callback_data="balance"
+            ),
+            InlineKeyboardButton(
+                "👤 Profile",
+                callback_data="profile"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "➕ Add Balance",
+                callback_data="deposit"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📦 My Orders",
+                callback_data="orders"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "♻ Replace",
+                callback_data="replace"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "☎ Support",
+                url="https://t.me/Junaid_Hasan_Admin"
+            ),
+
+            InlineKeyboardButton(
+                "📢 Community",
+                url=COMMUNITY
+            )
+        ]
+
+    ]
+
+    await message.reply_text(
+
+        "🏠 Welcome to Easy Buy Account\n\n"
+        "Choose an option below.",
+
+        reply_markup=InlineKeyboardMarkup(keyboard)
+
+    )
+
+
+# ==========================================================
+# CHECK JOIN
+# ==========================================================
+
+async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    user = query.from_user
+
+    try:
+
+        member = await context.bot.get_chat_member(
+            FORCE_JOIN,
+            user.id
+        )
+
+        if member.status not in ["left", "kicked"]:
+
+            await query.message.delete()
+
+            await show_main_menu(query.message)
+
+        else:
+
+            await query.answer(
+
+                "❌ Join the channel first.",
+
+                show_alert=True
+
+            )
+
+    except Exception:
+
+        await query.answer(
+
+            "⚠ Try Again",
+
+            show_alert=True
+
+        )
