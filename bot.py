@@ -28,6 +28,28 @@ from telegram.ext import (
 
 BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
 
+# Database
+
+conn = sqlite3.connect("easybuy.db", check_same_thread=False)
+
+cursor = conn.cursor()
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS users(
+
+id INTEGER PRIMARY KEY,
+
+name TEXT,
+
+balance INTEGER DEFAULT 0
+
+)
+
+""")
+
+conn.commit()
+
 ADMIN_ID = 8970306340
 
 FORCE_JOIN = "@easy_buy_account"
