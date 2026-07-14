@@ -31,7 +31,7 @@ from telegram.ext import (
 # BOT CONFIG
 # ==========================================================
 
-BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
+BOT_TOKEN = "YOUR_BOT_TOKEN"
 
 ADMIN_ID = 8970306340
 
@@ -65,6 +65,7 @@ print("=" * 50)
 print("Database :", DATABASE)
 print("Starting Bot...")
 print("=" * 50)
+
 # ==========================================================
 # DATABASE
 # ==========================================================
@@ -75,7 +76,13 @@ db = sqlite3.connect(
 )
 
 cursor = db.cursor()
+
+# ==========================================================
+# USERS
+# ==========================================================
+
 cursor.execute("""
+
 CREATE TABLE IF NOT EXISTS users(
 
 user_id INTEGER PRIMARY KEY,
@@ -86,14 +93,80 @@ username TEXT,
 
 balance INTEGER DEFAULT 0,
 
-joined TEXT
+joined TEXT,
+
+ban INTEGER DEFAULT 0
 
 )
+
 """)
 
-db.commit()
+# ==========================================================
+# CATEGORIES
+# ==========================================================
 
 cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS categories(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+name TEXT UNIQUE
+
+)
+
+""")
+
+# ==========================================================
+# PRODUCTS
+# ==========================================================
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS products(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+category_id INTEGER,
+
+name TEXT,
+
+price INTEGER,
+
+warranty INTEGER,
+
+description TEXT
+
+)
+
+""")
+
+# ==========================================================
+# STOCK
+# ==========================================================
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS stocks(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+product_id INTEGER,
+
+account TEXT,
+
+status INTEGER DEFAULT 0
+
+)
+
+""")
+
+# ==========================================================
+# PAYMENTS
+# ==========================================================
+
+cursor.execute("""
+
 CREATE TABLE IF NOT EXISTS payments(
 
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,40 +179,128 @@ amount INTEGER,
 
 screenshot TEXT,
 
+status TEXT,
+
+date TEXT
+
+)
+
+""")
+
+# ==========================================================
+# PURCHASES
+# ==========================================================
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS purchases(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+user_id INTEGER,
+
+product_id INTEGER,
+
+account TEXT,
+
+price INTEGER,
+
+date TEXT
+
+)
+
+""")
+
+# ==========================================================
+# REPLACE REQUEST
+# ==========================================================
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS replace_requests(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+purchase_id INTEGER,
+
+user_id INTEGER,
+
+reason TEXT,
+
 status TEXT
 
 )
+
 """)
+
+# ==========================================================
+# SETTINGS
+# ==========================================================
+
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS settings(
+
+id INTEGER PRIMARY KEY,
+
+force_join INTEGER DEFAULT 1,
+
+maintenance INTEGER DEFAULT 0
+
+)
+
+""")
+
+cursor.execute(
+    "INSERT OR IGNORE INTO settings(id) VALUES(1)"
+)
 
 db.commit()
 
+print("✅ Database Ready")
+
 # ==========================================================
-# FUNCTIONS
+# HELPER FUNCTIONS
 # ==========================================================
 
 def register_user(user):
 
     cursor.execute(
-        "SELECT * FROM users WHERE user_id=?",
+        "SELECT user_id FROM users WHERE user_id=?",
         (user.id,)
     )
 
-    if cursor.fetchone() is None:
+    data = cursor.fetchone()
+
+    if data is None:
 
         cursor.execute(
             """
             INSERT INTO users
-            VALUES(?,?,?,?,datetime('now'))
+            (
+                user_id,
+                name,
+                username,
+                balance,
+                joined
+            )
+            VALUES(?,?,?,?,?)
             """,
             (
                 user.id,
                 user.first_name,
                 user.username,
-                0
+                0,
+                datetime.now().strftime("%d-%m-%Y %H:%M")
             )
         )
 
         db.commit()
+
+
+# ==========================================================
+# GET BALANCE
+# ==========================================================
 
 def get_balance(user_id):
 
@@ -151,9 +312,160 @@ def get_balance(user_id):
     data = cursor.fetchone()
 
     if data:
+
         return data[0]
 
     return 0
+
+
+# ==========================================================
+# UPDATE BALANCE
+# ==========================================================
+
+def update_balance(user_id, amount):
+
+    cursor.execute(
+        """
+        UPDATE users
+        SET balance = balance + ?
+        WHERE user_id=?
+        """,
+        (
+            amount,
+            user_id
+        )
+    )
+
+    db.commit()
+
+
+# ==========================================================
+# CHECK BAN
+# ==========================================================
+
+def is_banned(user_id):
+
+    cursor.execute(
+        """
+        SELECT ban
+        FROM users
+        WHERE user_id=?
+        """,
+        (user_id,)
+    )
+
+    data = cursor.fetchone()
+
+    if data:
+
+        return data[0] == 1
+
+    return False
+
+
+# ==========================================================
+# USER INFO
+# ==========================================================
+
+def get_user(user_id):
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE user_id=?
+        """,
+        (user_id,)
+    )
+
+    return cursor.fetchone()
+
+
+# ==========================================================
+# TOTAL USERS
+# ==========================================================
+
+def total_users():
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM users"
+    )
+
+    return cursor.fetchone()[0]
+
+
+# ==========================================================
+# TOTAL PRODUCTS
+# ==========================================================
+
+def total_products():
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM products"
+    )
+
+    return cursor.fetchone()[0]
+
+
+# ==========================================================
+# TOTAL CATEGORIES
+# ==========================================================
+
+def total_categories():
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM categories"
+    )
+
+    return cursor.fetchone()[0]
+
+
+# ==========================================================
+# TOTAL SALES
+# ==========================================================
+
+def total_sales():
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM purchases"
+    )
+
+    return cursor.fetchone()[0]
+
+
+# ==========================================================
+# SETTINGS
+# ==========================================================
+
+def maintenance_mode():
+
+    cursor.execute(
+        """
+        SELECT maintenance
+        FROM settings
+        WHERE id=1
+        """
+    )
+
+    data = cursor.fetchone()
+
+    return data[0]
+
+
+def force_join_enabled():
+
+    cursor.execute(
+        """
+        SELECT force_join
+        FROM settings
+        WHERE id=1
+        """
+    )
+
+    data = cursor.fetchone()
+
+    return data[0]
+
 # ==========================================================
 # START COMMAND
 # ==========================================================
@@ -162,76 +474,111 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
 
+    # Register User
     register_user(user)
 
-    try:
+    # Ban Check
+    if is_banned(user.id):
 
-        member = await context.bot.get_chat_member(
-            FORCE_JOIN,
-            user.id
+        await update.message.reply_text(
+            "🚫 আপনার অ্যাকাউন্ট Suspend করা হয়েছে।"
         )
+        return
 
-        if member.status in ["left", "kicked"]:
+    # Maintenance Mode
+    if maintenance_mode() == 1 and user.id != ADMIN_ID:
 
-            keyboard = [
+        await update.message.reply_text(
+            "🛠 Bot বর্তমানে Maintenance Mode-এ আছে।\n\nঅনুগ্রহ করে পরে আবার চেষ্টা করুন।"
+        )
+        return
 
-                [
-                    InlineKeyboardButton(
-                        "📢 Join Channel",
-                        url=COMMUNITY
-                    )
-                ],
+    # Force Join
+    if force_join_enabled():
 
-                [
-                    InlineKeyboardButton(
-                        "✅ I've Joined",
-                        callback_data="check_join"
-                    )
-                ]
+        try:
 
-            ]
-
-            await update.message.reply_text(
-
-                "🔒 Please join our channel first.",
-
-                reply_markup=InlineKeyboardMarkup(keyboard)
-
+            member = await context.bot.get_chat_member(
+                CHANNEL_USERNAME,
+                user.id
             )
 
-            return
+            if member.status in ["left", "kicked"]:
 
-    except Exception:
+                keyboard = [
 
-        pass
+                    [
+                        InlineKeyboardButton(
+                            "📢 Join Channel",
+                            url=CHANNEL_LINK
+                        )
+                    ],
 
-    await show_main_menu(update.message)
+                    [
+                        InlineKeyboardButton(
+                            "✅ I've Joined",
+                            callback_data="check_join"
+                        )
+                    ]
+
+                ]
+
+                await update.message.reply_text(
+
+                    "🔒 বট ব্যবহার করার আগে আমাদের Channel Join করুন।",
+
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+
+                )
+
+                return
+
+        except:
+
+            pass
+
+    await home_menu(update.message)
 
 
 # ==========================================================
-# MAIN MENU
+# HOME MENU
 # ==========================================================
 
-async def show_main_menu(message):
+async def home_menu(message):
 
     keyboard = [
 
         [
             InlineKeyboardButton(
-                "🛒 Buy Account",
-                callback_data="buy"
+                "🛒 Buy ID",
+                callback_data="buy_id"
+            ),
+
+            InlineKeyboardButton(
+                "💼 Buy BM",
+                callback_data="buy_bm"
+            )
+
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🌍 VPN Service",
+                callback_data="vpn"
             )
         ],
 
         [
             InlineKeyboardButton(
-                "💰 Balance",
-                callback_data="balance"
-            ),
-            InlineKeyboardButton(
                 "👤 Profile",
                 callback_data="profile"
+            ),
+
+            InlineKeyboardButton(
+                "💰 Balance",
+                callback_data="balance"
             )
+
         ],
 
         [
@@ -243,27 +590,27 @@ async def show_main_menu(message):
 
         [
             InlineKeyboardButton(
-                "📦 My Orders",
-                callback_data="orders"
+                "📦 Purchase History",
+                callback_data="history"
             )
         ],
 
         [
             InlineKeyboardButton(
-                "♻ Replace",
+                "♻ Replace Request",
                 callback_data="replace"
             )
         ],
 
         [
             InlineKeyboardButton(
-                "☎ Support",
-                url="https://t.me/Junaid_Hasan_Admin"
+                "🆘 Support",
+                url=f"https://t.me/{SUPPORT.replace('@','')}"
             ),
 
             InlineKeyboardButton(
-                "📢 Community",
-                url=COMMUNITY
+                "👥 Community",
+                url=CHANNEL_LINK
             )
         ]
 
@@ -271,8 +618,15 @@ async def show_main_menu(message):
 
     await message.reply_text(
 
-        "🏠 Welcome to Easy Buy Account\n\n"
-        "Choose an option below.",
+        f"""
+🛍 <b>{BOT_NAME}</b>
+
+Welcome to Easy Buy Account.
+
+Choose an option below.
+""",
+
+        parse_mode=ParseMode.HTML,
 
         reply_markup=InlineKeyboardMarkup(keyboard)
 
@@ -289,40 +643,47 @@ async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer()
 
-    user = query.from_user
-
     try:
 
         member = await context.bot.get_chat_member(
-            FORCE_JOIN,
-            user.id
+
+            CHANNEL_USERNAME,
+
+            query.from_user.id
+
         )
 
-        if member.status not in ["left", "kicked"]:
+        if member.status not in [
+
+            "left",
+
+            "kicked"
+
+        ]:
 
             await query.message.delete()
 
-            await show_main_menu(query.message)
+            await home_menu(query.message)
 
         else:
 
             await query.answer(
 
-                "❌ Join the channel first.",
+                "❌ আগে Channel Join করুন।",
 
                 show_alert=True
 
             )
 
-    except Exception:
+    except:
 
         await query.answer(
 
-            "⚠ Try Again",
+            "⚠ আবার চেষ্টা করুন।",
 
             show_alert=True
 
-        )
+            )
 
 # ==========================================================
 # PROFILE
@@ -335,42 +696,32 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = query.from_user
 
-    cursor.execute(
-        "SELECT balance, joined FROM users WHERE user_id=?",
-        (user.id,)
-    )
-
-    data = cursor.fetchone()
-
-    balance = data[0] if data else 0
-    joined = data[1] if data else "Unknown"
+    balance = get_balance(user.id)
 
     text = f"""
 👤 <b>Your Profile</b>
 
-🆔 User ID : <code>{user.id}</code>
+🆔 ID : <code>{user.id}</code>
 
 🙍 Name : {user.first_name}
 
-📛 Username : @{user.username if user.username else 'None'}
+📛 Username : @{user.username if user.username else "None"}
 
 💰 Balance : {balance} BDT
-
-📅 Joined : {joined}
 """
 
     keyboard = [
         [
             InlineKeyboardButton(
                 "⬅ Back",
-                callback_data="back_home"
+                callback_data="home"
             )
         ]
     ]
 
     await query.message.edit_text(
         text,
-        parse_mode="HTML",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -384,7 +735,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    amount = get_balance(query.from_user.id)
+    money = get_balance(query.from_user.id)
 
     keyboard = [
         [
@@ -396,14 +747,57 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 "⬅ Back",
-                callback_data="back_home"
+                callback_data="home"
             )
         ]
     ]
 
     await query.message.edit_text(
-        f"💰 Your Current Balance\n\n<b>{amount} BDT</b>",
-        parse_mode="HTML",
+        f"""
+💰 <b>Your Balance</b>
+
+Current Balance :
+<b>{money} BDT</b>
+""",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# ==========================================================
+# DEPOSIT
+# ==========================================================
+
+async def deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "📝 Submit Deposit",
+                callback_data="submit_trx"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "⬅ Back",
+                callback_data="home"
+            )
+        ]
+    ]
+
+    await query.message.edit_text(
+        """
+💳 <b>bKash Deposit</b>
+
+📱 Number:
+017XXXXXXXX
+
+নিচের বাটনে চাপ দিয়ে Deposit Request দিন।
+""",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -415,112 +809,136 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
+
     await query.answer()
 
-    keyboard = [
+    await query.message.delete()
 
-        [InlineKeyboardButton("🛒 Buy Account", callback_data="buy")],
-
-        [
-            InlineKeyboardButton("💰 Balance", callback_data="balance"),
-            InlineKeyboardButton("👤 Profile", callback_data="profile")
-        ],
-
-        [InlineKeyboardButton("➕ Add Balance", callback_data="deposit")],
-
-        [InlineKeyboardButton("📦 My Orders", callback_data="orders")],
-
-        [InlineKeyboardButton("♻ Replace", callback_data="replace")],
-
-        [
-            InlineKeyboardButton("☎ Support", url="https://t.me/Junaid_Hasan_Admin"),
-            InlineKeyboardButton("📢 Community", url=COMMUNITY)
-        ]
-    ]
-
-    await query.message.edit_text(
-        "🏠 <b>Easy Buy Account</b>\n\nSelect an option:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    await home_menu(query.message)
 
 # ==========================================================
-# ADD BALANCE
+# SUBMIT DEPOSIT
 # ==========================================================
-
-async def deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-    await query.answer()
-
-    text = f"""
-💳 <b>Add Balance</b>
-
-নিচের যেকোনো নম্বরে টাকা পাঠান।
-
-📱 bKash: <code>{BKASH_NUMBER}</code>
-
-📱 Nagad: <code>{NAGAD_NUMBER}</code>
-
-টাকা পাঠানোর পর Transaction ID সাবমিট করুন।
-"""
-
-    keyboard = [
-
-        [
-            InlineKeyboardButton(
-                "🧾 Submit Transaction ID",
-                callback_data="submit_trx"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "⬅ Back",
-                callback_data="back_home"
-            )
-        ]
-
-    ]
-
-    await query.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
 
 async def submit_trx(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
+
     await query.answer()
 
-    context.user_data["waiting_trx"] = True
+    context.user_data.clear()
 
-    await query.message.reply_text(
-        "🧾 আপনার Transaction ID লিখে পাঠান।"
+    set_state(context, "deposit_amount")
+
+    await query.message.edit_text(
+        "💰 আপনি কত টাকা Deposit করেছেন?\n\nউদাহরণ:\n500"
     )
+
+# ==========================================================
+# RECEIVE AMOUNT
+# ==========================================================
+
+async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "deposit_amount":
+        return
+
+    if not update.message.text.isdigit():
+
+        await update.message.reply_text(
+            "❌ শুধু সংখ্যা লিখুন।"
+        )
+
+        return
+
+    context.user_data["amount"] = int(update.message.text)
+
+    set_state(context, "deposit_trx")
+
+    await update.message.reply_text(
+        "🧾 এখন আপনার Transaction ID পাঠান।"
+    )
+# ==========================================================
+# RECEIVE TRX
+# ==========================================================
 
 async def receive_trx(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if not context.user_data.get("waiting_trx"):
+    if get_state(context) != "deposit_trx":
         return
 
-    context.user_data["waiting_trx"] = False
-
-    trx = update.message.text
-
-    user = update.effective_user
+    trx = update.message.text.strip()
 
     cursor.execute(
-        "INSERT INTO payments(user_id,trx,amount,status) VALUES(?,?,?,?)",
-        (
-            user.id,
+        "SELECT id FROM payments WHERE trx=?",
+        (trx,)
+    )
+
+    if cursor.fetchone():
+
+        await update.message.reply_text(
+            "❌ এই Transaction ID আগে ব্যবহার হয়েছে।"
+        )
+
+        return
+
+    context.user_data["trx"] = trx
+
+    set_state(context, "deposit_photo")
+
+    await update.message.reply_text(
+        "📷 এখন Payment Screenshot পাঠান।"
+    )
+
+# ==========================================================
+# RECEIVE SCREENSHOT
+# ==========================================================
+
+async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if context.user_data.get("deposit_step") != "photo":
+        return
+
+    if not update.message.photo:
+
+        await update.message.reply_text(
+            "❌ Screenshot পাঠান।"
+        )
+
+        return
+
+    photo = update.message.photo[-1].file_id
+
+    cursor.execute(
+        """
+        INSERT INTO payments(
+            user_id,
             trx,
-            0,
-            "Pending"
+            amount,
+            screenshot,
+            status,
+            date
+        )
+        VALUES(?,?,?,?,?,?)
+        """,
+        (
+            update.effective_user.id,
+            context.user_data["trx"],
+            context.user_data["amount"],
+            photo,
+            "Pending",
+            datetime.now().strftime("%d-%m-%Y %H:%M")
         )
     )
 
+    db.commit()
+
+    clear_state(context)
+context.user_data.clear()
+
+    await update.message.reply_text(
+        "✅ Deposit Request সফলভাবে জমা হয়েছে।\n\nAdmin যাচাই করার পরে Balance যোগ করা হবে।"
+    )
 
 # ==========================================================
 # ADMIN PANEL
@@ -533,15 +951,16 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user.id != ADMIN_ID:
 
         await update.message.reply_text(
-            "❌ You are not Admin."
+            "❌ আপনি Admin নন।"
         )
+
         return
 
     keyboard = [
 
         [
             InlineKeyboardButton(
-                "💰 Pending Deposits",
+                "💳 Pending Deposit",
                 callback_data="pending_deposit"
             )
         ],
@@ -549,14 +968,24 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 "📦 Products",
-                callback_data="products"
+                callback_data="admin_products"
+            ),
+
+            InlineKeyboardButton(
+                "📂 Categories",
+                callback_data="admin_categories"
             )
         ],
 
         [
             InlineKeyboardButton(
+                "👥 Users",
+                callback_data="admin_users"
+            ),
+
+            InlineKeyboardButton(
                 "📊 Statistics",
-                callback_data="stats"
+                callback_data="admin_stats"
             )
         ],
 
@@ -578,38 +1007,28 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
 
-        "👨‍💻 Easy Buy Account\n\nAdmin Panel",
+        f"""
+👨‍💻 <b>{BOT_NAME}</b>
+
+Admin Control Panel
+
+👥 Users : {total_users()}
+
+📂 Categories : {total_categories()}
+
+📦 Products : {total_products()}
+
+🛒 Sales : {total_sales()}
+""",
+
+        parse_mode=ParseMode.HTML,
 
         reply_markup=InlineKeyboardMarkup(keyboard)
 
     )
-    db.commit()
-
-    await update.message.reply_text(
-        "✅ Transaction ID জমা হয়েছে।\n\nAdmin যাচাই করার পর Balance যোগ হবে।"
-    )
-
-    text = f"""
-🆕 নতুন Deposit Request
-
-👤 {user.first_name}
-
-🆔 {user.id}
-
-🧾 TRX ID:
-<code>{trx}</code>
-
-Status : Pending
-"""
-
-    await context.bot.send_message(
-        ADMIN_ID,
-        text,
-        parse_mode="HTML"
-    )
 
 # ==========================================================
-# PENDING DEPOSIT LIST
+# PENDING DEPOSIT
 # ==========================================================
 
 async def pending_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -618,27 +1037,33 @@ async def pending_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer()
 
-    if query.from_user.id != ADMIN_ID:
-
-        return
-
     cursor.execute("""
 
-        SELECT id,user_id,trx
+    SELECT
 
-        FROM payments
+    id,
 
-        WHERE status='Pending'
+    user_id,
+
+    trx,
+
+    amount
+
+    FROM payments
+
+    WHERE status='Pending'
+
+    ORDER BY id DESC
 
     """)
 
-    data = cursor.fetchall()
+    rows = cursor.fetchall()
 
-    if len(data) == 0:
+    if len(rows) == 0:
 
         await query.message.edit_text(
 
-            "✅ No Pending Deposit."
+            "✅ কোনো Pending Deposit নেই।"
 
         )
 
@@ -646,9 +1071,9 @@ async def pending_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = []
 
-    text = "💳 Pending Deposits\n\n"
+    text = "💳 Pending Deposit List\n\n"
 
-    for row in data:
+    for row in rows:
 
         pid = row[0]
 
@@ -656,52 +1081,51 @@ async def pending_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         trx = row[2]
 
+        amount = row[3]
+
         text += f"""
+
 ID : {pid}
+
 User : {uid}
+
+Amount : {amount} BDT
+
 TRX : {trx}
 
 """
 
-        keyboard.append(
-
-            [
-
-                InlineKeyboardButton(
-
-                    f"Approve #{pid}",
-
-                    callback_data=f"approve_{pid}"
-
-                ),
-
-                InlineKeyboardButton(
-
-                    f"Reject #{pid}",
-
-                    callback_data=f"reject_{pid}"
-
-                )
-
-            ]
-
-        )
-
-    keyboard.append(
-
-        [
+        keyboard.append([
 
             InlineKeyboardButton(
 
-                "⬅ Back",
+                f"✅ Approve #{pid}",
 
-                callback_data="admin_home"
+                callback_data=f"approve_{pid}"
+
+            ),
+
+            InlineKeyboardButton(
+
+                f"❌ Reject #{pid}",
+
+                callback_data=f"reject_{pid}"
 
             )
 
-        ]
+        ])
 
-    )
+    keyboard.append([
+
+        InlineKeyboardButton(
+
+            "⬅ Back",
+
+            callback_data="admin_home"
+
+        )
+
+    ])
 
     await query.message.edit_text(
 
@@ -709,8 +1133,99 @@ TRX : {trx}
 
         reply_markup=InlineKeyboardMarkup(keyboard)
 
+        )
+
+# ==========================================================
+# ADMIN HOME
+# ==========================================================
+
+async def admin_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    keyboard = [
+
+        [
+
+            InlineKeyboardButton(
+                "💳 Pending Deposit",
+                callback_data="pending_deposit"
+            )
+
+        ],
+
+        [
+
+            InlineKeyboardButton(
+                "📦 Products",
+                callback_data="admin_products"
+            ),
+
+            InlineKeyboardButton(
+                "📂 Categories",
+                callback_data="admin_categories"
+            )
+
+        ],
+
+        [
+
+            InlineKeyboardButton(
+                "👥 Users",
+                callback_data="admin_users"
+            ),
+
+            InlineKeyboardButton(
+                "📊 Statistics",
+                callback_data="admin_stats"
+            )
+
+        ],
+
+        [
+
+            InlineKeyboardButton(
+                "📢 Broadcast",
+                callback_data="broadcast"
+            )
+
+        ],
+
+        [
+
+            InlineKeyboardButton(
+                "⚙ Settings",
+                callback_data="settings"
+            )
+
+        ]
+
+    ]
+
+    await query.message.edit_text(
+
+        f"""
+👨‍💻 <b>{BOT_NAME}</b>
+
+Admin Control Panel
+
+👥 Users : {total_users()}
+
+📂 Categories : {total_categories()}
+
+📦 Products : {total_products()}
+
+🛒 Sales : {total_sales()}
+""",
+
+        parse_mode=ParseMode.HTML,
+
+        reply_markup=InlineKeyboardMarkup(keyboard)
+
     )
-    
+
 # ==========================================================
 # APPROVE DEPOSIT
 # ==========================================================
@@ -718,7 +1233,6 @@ TRX : {trx}
 async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
-
     await query.answer()
 
     if query.from_user.id != ADMIN_ID:
@@ -726,30 +1240,44 @@ async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     payment_id = int(query.data.split("_")[1])
 
-    cursor.execute(
-        "SELECT user_id, amount FROM payments WHERE id=?",
-        (payment_id,)
-    )
+    cursor.execute("""
+    SELECT
+    user_id,
+    amount,
+    status
+    FROM payments
+    WHERE id=?
+    """,(payment_id,))
 
     data = cursor.fetchone()
 
     if not data:
 
-        await query.answer("Payment Not Found", show_alert=True)
+        await query.answer(
+            "Payment Not Found",
+            show_alert=True
+        )
         return
 
     user_id = data[0]
     amount = data[1]
+    status = data[2]
 
-    cursor.execute(
-        "UPDATE users SET balance = balance + ? WHERE user_id=?",
-        (amount, user_id)
-    )
+    if status != "Pending":
 
-    cursor.execute(
-        "UPDATE payments SET status='Approved' WHERE id=?",
-        (payment_id,)
-    )
+        await query.answer(
+            "Already Processed",
+            show_alert=True
+        )
+        return
+
+    update_balance(user_id, amount)
+
+    cursor.execute("""
+    UPDATE payments
+    SET status='Approved'
+    WHERE id=?
+    """,(payment_id,))
 
     db.commit()
 
@@ -757,16 +1285,15 @@ async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await context.bot.send_message(
 
-            chat_id=user_id,
+            user_id,
 
-            text=f"""
+            f"""
 ✅ Deposit Approved
 
 💰 Amount : {amount} BDT
 
-আপনার Balance সফলভাবে যোগ হয়েছে।
+আপনার Balance সফলভাবে যোগ করা হয়েছে।
 """
-
         )
 
     except:
@@ -774,7 +1301,7 @@ async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.message.edit_text(
         "✅ Deposit Approved Successfully."
-    )
+)
 
 # ==========================================================
 # REJECT DEPOSIT
@@ -783,7 +1310,6 @@ async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
-
     await query.answer()
 
     if query.from_user.id != ADMIN_ID:
@@ -791,19 +1317,65 @@ async def reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     payment_id = int(query.data.split("_")[1])
 
-    cursor.execute(
-        "UPDATE payments SET status='Rejected' WHERE id=?",
-        (payment_id,)
-    )
+    cursor.execute("""
+    SELECT
+    user_id,
+    status
+    FROM payments
+    WHERE id=?
+    """,(payment_id,))
+
+    data = cursor.fetchone()
+
+    if not data:
+
+        await query.answer(
+            "Payment Not Found",
+            show_alert=True
+        )
+        return
+
+    user_id = data[0]
+    status = data[1]
+
+    if status != "Pending":
+
+        await query.answer(
+            "Already Processed",
+            show_alert=True
+        )
+        return
+
+    cursor.execute("""
+    UPDATE payments
+    SET status='Rejected'
+    WHERE id=?
+    """,(payment_id,))
 
     db.commit()
+
+    try:
+
+        await context.bot.send_message(
+
+            user_id,
+
+            """
+❌ আপনার Deposit Request Reject করা হয়েছে।
+
+প্রয়োজনে Support-এ যোগাযোগ করুন।
+"""
+        )
+
+    except:
+        pass
 
     await query.message.edit_text(
         "❌ Deposit Rejected."
     )
 
 # ==========================================================
-# RUN BOT
+# ADMIN COMMAND
 # ==========================================================
 
 app = Application.builder().token(BOT_TOKEN).build()
@@ -816,91 +1388,934 @@ app.add_handler(
 )
 
 app.add_handler(
+    CommandHandler(
+        "admin",
+        admin_panel
+    )
+        )
+
+# ==========================================================
+# CALLBACK HANDLERS
+# ==========================================================
+
+app.add_handler(
     CallbackQueryHandler(
         check_join,
-        pattern="check_join"
+        pattern="^check_join$"
     )
 )
 
 app.add_handler(
     CallbackQueryHandler(
         profile,
-        pattern="profile"
+        pattern="^profile$"
     )
 )
 
 app.add_handler(
     CallbackQueryHandler(
         balance,
-        pattern="balance"
-    )
-)
-
-app.add_handler(
-    CallbackQueryHandler(
-        back_home,
-        pattern="back_home"
+        pattern="^balance$"
     )
 )
 
 app.add_handler(
     CallbackQueryHandler(
         deposit,
-        pattern="deposit"
+        pattern="^deposit$"
     )
 )
 
 app.add_handler(
     CallbackQueryHandler(
         submit_trx,
-        pattern="submit_trx"
+        pattern="^submit_trx$"
     )
 )
 
 app.add_handler(
-    MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        receive_trx
-    )
-)
-
-app.add_handler(
-    CommandHandler(
-        "admin",
-        admin_panel
-    )
-)
-
-app.add_handler(
-
     CallbackQueryHandler(
-
-        pending_deposit,
-
-        pattern="pending_deposit"
-
+        back_home,
+        pattern="^home$"
     )
-
 )
+
+app.add_handler(
+    CallbackQueryHandler(
+        pending_deposit,
+        pattern="^pending_deposit$"
+    )
+)
+
+app.add_handler(
+    CallbackQueryHandler(
+        admin_home,
+        pattern="^admin_home$"
+    )
+)
+
 app.add_handler(
     CallbackQueryHandler(
         approve_deposit,
-        pattern=r"^approve_\d+$"
+        pattern="^approve_"
     )
 )
 
 app.add_handler(
     CallbackQueryHandler(
         reject_deposit,
-        pattern=r"^reject_\d+$"
+        pattern="^reject_"
     )
 )
 
+# ==========================================================
+# MESSAGE HANDLERS
+# ==========================================================
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        text_router
+    )
+)
+
+app.add_handler(
+    MessageHandler(
+        filters.PHOTO,
+        photo_router
+    )
+)
+
+# ==========================================================
+# CATEGORY PANEL
+# ==========================================================
+
+async def admin_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    cursor.execute(
+        "SELECT id,name FROM categories ORDER BY id"
+    )
+
+    rows = cursor.fetchall()
+
+    text = "📂 Category List\n\n"
+
+    keyboard = []
+
+    if rows:
+
+        for row in rows:
+
+            text += f"• {row[1]}\n"
+
+    else:
+
+        text += "No Category Found."
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "➕ Add Category",
+            callback_data="add_category"
+        )
+    ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="admin_home"
+        )
+    ])
+
+    await query.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# ADD CATEGORY
+# ==========================================================
+
+async def add_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    set_state(context, "category")
+
+    await query.message.edit_text(
+
+        "📂 নতুন Category Name লিখুন।"
+
+    )
+
+# ==========================================================
+# RECEIVE CATEGORY
+# ==========================================================
+
+async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "category":
+
+        return
+
+    name = update.message.text.strip()
+
+    cursor.execute(
+
+        "SELECT id FROM categories WHERE name=?",
+
+        (name,)
+
+    )
+
+    if cursor.fetchone():
+
+        await update.message.reply_text(
+
+            "❌ এই Category আগে থেকেই আছে।"
+
+        )
+
+        return
+
+    cursor.execute(
+
+        "INSERT INTO categories(name) VALUES(?)",
+
+        (name,)
+
+    )
+
+    db.commit()
+
+    clear_state(context)
+context.user_data.clear()
+
+    await update.message.reply_text(
+
+        f"✅ Category Added\n\n{name}"
+
+    )
+
+# ==========================================================
+# DELETE CATEGORY
+# ==========================================================
+
+async def delete_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    cid = int(query.data.split("_")[2])
+
+    cursor.execute(
+
+        "DELETE FROM categories WHERE id=?",
+
+        (cid,)
+
+    )
+
+    db.commit()
+
+    await query.message.edit_text(
+
+        "✅ Category Deleted."
+
+    )
+
+# ==========================================================
+# USER STATE
+# ==========================================================
+
+def set_state(context, state):
+
+    context.user_data["state"] = state
 
 
+def get_state(context):
+
+    return context.user_data.get("state")
 
 
+def clear_state(context):
 
-print("Easy Buy Account Started...")
+    context.user_data.pop("state", None)
+
+# ==========================================================
+# TEXT ROUTER
+# ==========================================================
+
+async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    state = get_state(context)
+
+    if state == "deposit_amount":
+        return await receive_amount(update, context)
+
+    elif state == "deposit_trx":
+        return await receive_trx(update, context)
+
+    elif state == "category":
+        return await receive_category(update, context)
+
+    else:
+        elif state == "product_name":
+    return await receive_product_name(update, context)
+
+elif state == "product_price":
+    return await receive_product_price(update, context)
+
+elif state == "product_warranty":
+    return await receive_product_warranty(update, context)
+
+elif state == "product_description":
+    return await receive_product_description(update, context)
+        return
+
+# ==========================================================
+# PHOTO ROUTER
+# ==========================================================
+
+async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    state = get_state(context)
+
+    if state == "deposit_photo":
+        return await receive_photo(update, context)
+
+    return
+
+# ==========================================================
+# PRODUCT PANEL
+# ==========================================================
+
+async def admin_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    cursor.execute("""
+    SELECT
+        products.id,
+        products.name,
+        products.price,
+        categories.name
+    FROM products
+    LEFT JOIN categories
+    ON products.category_id = categories.id
+    ORDER BY products.id DESC
+    """)
+
+    rows = cursor.fetchall()
+
+    text = "📦 Product List\n\n"
+
+    keyboard = []
+
+    if rows:
+
+        for row in rows:
+
+            text += f"""
+🆔 {row[0]}
+📦 {row[1]}
+📂 {row[3]}
+💰 {row[2]} BDT
+
+"""
+
+    else:
+
+        text += "No Product Found."
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "➕ Add Product",
+            callback_data="add_product"
+        )
+    ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="admin_home"
+        )
+    ])
+
+    await query.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# ADD PRODUCT
+# ==========================================================
+
+async def add_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    cursor.execute(
+        "SELECT id,name FROM categories"
+    )
+
+    rows = cursor.fetchall()
+
+    if not rows:
+
+        await query.message.edit_text(
+            "❌ আগে একটি Category তৈরি করুন।"
+        )
+
+        return
+
+    keyboard = []
+
+    for row in rows:
+
+        keyboard.append([
+            InlineKeyboardButton(
+                row[1],
+                callback_data=f"select_category_{row[0]}"
+            )
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="admin_products"
+        )
+    ])
+
+    await query.message.edit_text(
+        "📂 Product-এর Category নির্বাচন করুন।",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# SELECT CATEGORY
+# ==========================================================
+
+async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    category_id = int(query.data.split("_")[2])
+
+    context.user_data["product_category"] = category_id
+
+    set_state(context, "product_name")
+
+    await query.message.edit_text(
+        "📝 এখন Product Name লিখুন।"
+                    )
+# ==========================================================
+# RECEIVE PRODUCT NAME
+# ==========================================================
+
+async def receive_product_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "product_name":
+        return
+
+    name = update.message.text.strip()
+
+    if len(name) < 2:
+
+        await update.message.reply_text(
+            "❌ Product Name খুব ছোট।"
+        )
+        return
+
+    context.user_data["product_name"] = name
+
+    set_state(context, "product_price")
+
+    await update.message.reply_text(
+        "💰 Product Price লিখুন (শুধু সংখ্যা)।"
+    )
+
+# ==========================================================
+# RECEIVE PRODUCT PRICE
+# ==========================================================
+
+async def receive_product_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "product_price":
+        return
+
+    if not update.message.text.isdigit():
+
+        await update.message.reply_text(
+            "❌ শুধু সংখ্যা লিখুন।"
+        )
+        return
+
+    price = int(update.message.text)
+
+    if price <= 0:
+
+        await update.message.reply_text(
+            "❌ Price অবশ্যই ১ বা তার বেশি হতে হবে।"
+        )
+        return
+
+    context.user_data["product_price"] = price
+
+    set_state(context, "product_warranty")
+
+    await update.message.reply_text(
+        "🛡 Warranty (দিন) লিখুন।"
+    )
+
+# ==========================================================
+# RECEIVE WARRANTY
+# ==========================================================
+
+async def receive_product_warranty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "product_warranty":
+        return
+
+    if not update.message.text.isdigit():
+
+        await update.message.reply_text(
+            "❌ শুধু সংখ্যা লিখুন।"
+        )
+        return
+
+    warranty = int(update.message.text)
+
+    if warranty < 0:
+
+        await update.message.reply_text(
+            "❌ Warranty ভুল।"
+        )
+        return
+
+    context.user_data["product_warranty"] = warranty
+
+    set_state(context, "product_description")
+
+    await update.message.reply_text(
+        "📝 Product Description লিখুন।"
+    )
+
+# ==========================================================
+# RECEIVE DESCRIPTION
+# ==========================================================
+
+async def receive_product_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "product_description":
+        return
+
+    description = update.message.text.strip()
+
+    if len(description) == 0:
+
+        await update.message.reply_text(
+            "❌ Description লিখুন।"
+        )
+        return
+
+    if "product_category" not in context.user_data:
+
+        await update.message.reply_text(
+            "❌ Category পাওয়া যায়নি। আবার শুরু করুন।"
+        )
+        clear_state(context)
+        context.user_data.clear()
+        return
+
+    category = context.user_data["product_category"]
+    name = context.user_data["product_name"]
+    price = context.user_data["product_price"]
+    warranty = context.user_data["product_warranty"]
+
+    cursor.execute(
+        """
+        INSERT INTO products(
+            category_id,
+            name,
+            price,
+            warranty,
+            description
+        )
+        VALUES(?,?,?,?,?)
+        """,
+        (
+            category,
+            name,
+            price,
+            warranty,
+            description
+        )
+    )
+
+    db.commit()
+
+    clear_state(context)
+    context.user_data.clear()
+
+    await update.message.reply_text(
+        f"""
+✅ Product সফলভাবে যোগ হয়েছে।
+
+📦 Name : {name}
+
+💰 Price : {price} BDT
+
+🛡 Warranty : {warranty} Days
+"""
+    )
+
+# ==========================================================
+# UPLOAD STOCK
+# ==========================================================
+
+async def upload_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    cursor.execute(
+        "SELECT id, name FROM products ORDER BY name"
+    )
+
+    products = cursor.fetchall()
+
+    if not products:
+        await query.message.edit_text(
+            "❌ আগে একটি Product তৈরি করুন।"
+        )
+        return
+
+    keyboard = []
+
+    for pid, name in products:
+        keyboard.append([
+            InlineKeyboardButton(
+                name,
+                callback_data=f"stock_product_{pid}"
+            )
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="admin_products"
+        )
+    ])
+
+    await query.message.edit_text(
+        "📦 যে Product-এ Stock যোগ করবেন সেটি নির্বাচন করুন।",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# SELECT STOCK PRODUCT
+# ==========================================================
+
+async def select_stock_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    product_id = int(query.data.split("_")[2])
+
+    context.user_data["stock_product"] = product_id
+
+    set_state(context, "stock_upload")
+
+    await query.message.edit_text(
+        "📄 এখন .txt File পাঠান।"
+    )
+
+# ==========================================================
+# RECEIVE TXT
+# ==========================================================
+
+async def receive_stock_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "stock_upload":
+        return
+
+    document = update.message.document
+
+    if document is None:
+        return
+
+    if not document.file_name.endswith(".txt"):
+
+        await update.message.reply_text(
+            "❌ শুধু TXT File গ্রহণযোগ্য।"
+        )
+
+        return
+
+    file = await document.get_file()
+
+    await file.download_to_drive("stock.txt")
+
+    await update.message.reply_text(
+        "✅ TXT File Upload হয়েছে।"
+    )
+
+    set_state(context, "stock_import")
+
+# ==========================================================
+# IMPORT STOCK
+# ==========================================================
+
+async def import_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "stock_import":
+        return
+
+    product = context.user_data["stock_product"]
+
+    count = 0
+
+    with open("stock.txt", "r", encoding="utf-8") as f:
+
+        for line in f:
+
+            account = line.strip()
+
+            if not account:
+                continue
+
+            cursor.execute(
+                "SELECT id FROM stocks WHERE account=?",
+                (account,)
+            )
+
+            if cursor.fetchone():
+                continue
+
+            cursor.execute(
+                """
+                INSERT INTO stocks(
+                    product,
+                    account,
+                    status
+                )
+                VALUES(?,?,0)
+                """,
+                (
+                    product,
+                    account
+                )
+            )
+
+            count += 1
+
+    db.commit()
+
+    clear_state(context)
+
+    context.user_data.clear()
+
+    await update.message.reply_text(
+        f"✅ {count} টি Stock সফলভাবে Import হয়েছে।"
+    )
+
+# ==========================================================
+# BUY PRODUCT
+# ==========================================================
+
+async def buy_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    cursor.execute("""
+        SELECT id,name,price
+        FROM products
+        ORDER BY name
+    """)
+
+    products = cursor.fetchall()
+
+    if not products:
+        await query.message.edit_text("❌ কোনো Product পাওয়া যায়নি।")
+        return
+
+    keyboard = []
+
+    for pid, name, price in products:
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{name} - {price} BDT",
+                callback_data=f"buy_{pid}"
+            )
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="home"
+        )
+    ])
+
+    await query.message.edit_text(
+        "🛒 একটি Product নির্বাচন করুন।",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+# ==========================================================
+# CONFIRM PURCHASE
+# ==========================================================
+
+async def confirm_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    product_id = int(query.data.split("_")[1])
+
+    cursor.execute(
+        "SELECT name,price FROM products WHERE id=?",
+        (product_id,)
+    )
+
+    product = cursor.fetchone()
+
+    if not product:
+        await query.answer("Product Not Found", show_alert=True)
+        return
+
+    name, price = product
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Confirm",
+                callback_data=f"confirmbuy_{product_id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "❌ Cancel",
+                callback_data="home"
+            )
+        ]
+    ]
+
+    await query.message.edit_text(
+        f"""
+📦 Product : {name}
+
+💰 Price : {price} BDT
+
+আপনি কি Purchase করতে চান?
+""",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# AUTO DELIVERY
+# ==========================================================
+
+async def auto_delivery(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    product_id = int(query.data.split("_")[1])
+    user_id = query.from_user.id
+
+    balance = get_balance(user_id)
+
+    cursor.execute(
+        "SELECT name,price FROM products WHERE id=?",
+        (product_id,)
+    )
+
+    product = cursor.fetchone()
+
+    if not product:
+        await query.answer("Product নেই", show_alert=True)
+        return
+
+    name, price = product
+
+    if balance < price:
+        await query.answer("❌ Balance পর্যাপ্ত নয়।", show_alert=True)
+        return
+
+    cursor.execute("""
+        SELECT id,account
+        FROM stocks
+        WHERE product=? AND status=0
+        LIMIT 1
+    """, (product_id,))
+
+    stock = cursor.fetchone()
+
+    if not stock:
+        await query.answer("❌ Stock শেষ।", show_alert=True)
+        return
+
+    stock_id, account = stock
+
+    # Balance কাটুন
+    update_balance(user_id, -price)
+
+    # Stock Sold
+    cursor.execute(
+        "UPDATE stocks SET status=1 WHERE id=?",
+        (stock_id,)
+    )
+
+    # Purchase History
+    cursor.execute("""
+        INSERT INTO purchases(user_id,product,account,date)
+        VALUES(?,?,?,?)
+    """, (
+        user_id,
+        product_id,
+        account,
+        datetime.now().strftime("%d-%m-%Y %H:%M")
+    ))
+
+    db.commit()
+
+    await query.message.edit_text(
+        f"""
+✅ Purchase Successful
+
+📦 Product : {name}
+
+🔑 Account:
+
+<code>{account}</code>
+""",
+        parse_mode=ParseMode.HTML
+    )
+
+
+# ==========================================================
+# RUN BOT
+# ==========================================================
+
+print("===================================")
+print(" Easy Buy Account Started")
+print("===================================")
 
 app.run_polling()
+
+
