@@ -553,8 +553,108 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     )
 
+# ==========================================================
+# PENDING DEPOSIT LIST
+# ==========================================================
 
+async def pending_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    query = update.callback_query
+
+    await query.answer()
+
+    if query.from_user.id != ADMIN_ID:
+
+        return
+
+    cursor.execute("""
+
+        SELECT id,user_id,trx
+
+        FROM payments
+
+        WHERE status='Pending'
+
+    """)
+
+    data = cursor.fetchall()
+
+    if len(data) == 0:
+
+        await query.message.edit_text(
+
+            "✅ No Pending Deposit."
+
+        )
+
+        return
+
+    keyboard = []
+
+    text = "💳 Pending Deposits\n\n"
+
+    for row in data:
+
+        pid = row[0]
+
+        uid = row[1]
+
+        trx = row[2]
+
+        text += f"""
+ID : {pid}
+User : {uid}
+TRX : {trx}
+
+"""
+
+        keyboard.append(
+
+            [
+
+                InlineKeyboardButton(
+
+                    f"Approve #{pid}",
+
+                    callback_data=f"approve_{pid}"
+
+                ),
+
+                InlineKeyboardButton(
+
+                    f"Reject #{pid}",
+
+                    callback_data=f"reject_{pid}"
+
+                )
+
+            ]
+
+        )
+
+    keyboard.append(
+
+        [
+
+            InlineKeyboardButton(
+
+                "⬅ Back",
+
+                callback_data="admin_home"
+
+            )
+
+        ]
+
+    )
+
+    await query.message.edit_text(
+
+        text,
+
+        reply_markup=InlineKeyboardMarkup(keyboard)
+
+    )
 
 
 
@@ -656,6 +756,20 @@ app.add_handler(
         admin_panel
     )
 )
+
+app.add_handler(
+
+    CallbackQueryHandler(
+
+        pending_deposit,
+
+        pattern="pending_deposit"
+
+    )
+
+)
+
+
 
 print("Easy Buy Account Started...")
 
