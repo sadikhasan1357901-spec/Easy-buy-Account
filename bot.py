@@ -744,6 +744,33 @@ async def approve_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.edit_text(
         "✅ Deposit Approved Successfully."
     )
+
+# ==========================================================
+# REJECT DEPOSIT
+# ==========================================================
+
+async def reject_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    if query.from_user.id != ADMIN_ID:
+        return
+
+    payment_id = int(query.data.split("_")[1])
+
+    cursor.execute(
+        "UPDATE payments SET status='Rejected' WHERE id=?",
+        (payment_id,)
+    )
+
+    db.commit()
+
+    await query.message.edit_text(
+        "❌ Deposit Rejected."
+    )
+
 # ==========================================================
 # RUN BOT
 # ==========================================================
