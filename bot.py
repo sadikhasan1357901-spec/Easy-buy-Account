@@ -2,12 +2,10 @@
 # Easy Buy Account
 # User Bot
 # Version : 0.1
-# Developer : ChatGPT
 # ==========================================================
 
-import os
-import sqlite3
 import logging
+import sqlite3
 
 from telegram import (
     Update,
@@ -26,7 +24,7 @@ from telegram.ext import (
 # CONFIG
 # ==========================================================
 
-BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
+BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"
 
 ADMIN_ID = 8970306340
 
@@ -43,8 +41,8 @@ DATABASE = "easybuy.db"
 # ==========================================================
 
 logging.basicConfig(
-    format="%(asctime)s | %(levelname)s | %(message)s",
-    level=logging.INFO
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
 )
 
 # ==========================================================
@@ -58,17 +56,10 @@ db = sqlite3.connect(
 
 cursor = db.cursor()
 
-# ==========================================================
-# USERS
-# ==========================================================
-
 cursor.execute("""
-
 CREATE TABLE IF NOT EXISTS users(
 
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-user_id INTEGER UNIQUE,
+user_id INTEGER PRIMARY KEY,
 
 name TEXT,
 
@@ -79,326 +70,48 @@ balance INTEGER DEFAULT 0,
 joined TEXT
 
 )
-
-""")
-
-# ==========================================================
-# CATEGORY
-# ==========================================================
-
-cursor.execute("""
-
-CREATE TABLE IF NOT EXISTS categories(
-
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-name TEXT
-
-)
-
-""")
-
-# ==========================================================
-# PRODUCTS
-# ==========================================================
-
-cursor.execute("""
-
-CREATE TABLE IF NOT EXISTS products(
-
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-category INTEGER,
-
-name TEXT,
-
-price INTEGER,
-
-warranty INTEGER
-
-)
-
-""")
-
-# ==========================================================
-# STOCK
-# ==========================================================
-
-cursor.execute("""
-
-CREATE TABLE IF NOT EXISTS stocks(
-
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-product INTEGER,
-
-account TEXT,
-
-status INTEGER DEFAULT 0
-
-)
-
-""")
-
-# ==========================================================
-# PAYMENT
-# ==========================================================
-
-cursor.execute("""
-
-CREATE TABLE IF NOT EXISTS payments(
-
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-user_id INTEGER,
-
-trx TEXT,
-
-amount INTEGER,
-
-status TEXT
-
-)
-
-""")
-
-# ==========================================================
-# PURCHASE
-# ==========================================================
-
-cursor.execute("""
-
-CREATE TABLE IF NOT EXISTS purchases(
-
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-user_id INTEGER,
-
-product INTEGER,
-
-account TEXT,
-
-date TEXT
-
-)
-
 """)
 
 db.commit()
 
-print("Database Ready...")
+# ==========================================================
+# FUNCTIONS
+# ==========================================================
 
+def register_user(user):
 
-
-
-
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup
-)
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes
-)
-
-# ==========================
-# CONFIG
-# ==========================
-
-BOT_TOKEN = "8656122440:AAGEvLbWD8k72zuZh21KonTQLws6mQk64Yc"
-
-ADMIN_ID = 8970306340
-
-CHANNEL_USERNAME = "@easy_buy_account"
-
-# ==========================
-# START
-# ==========================
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user = update.effective_user
-
-    try:
-        member = await context.bot.get_chat_member(
-            CHANNEL_USERNAME,
-            user.id
-        )
-
-        if member.status in ["left", "kicked"]:
-
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "📢 Join Channel",
-                        url="https://t.me/easy_buy_account"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "✅ I've Joined",
-                        callback_data="check_join"
-                    )
-                ]
-            ]
-
-            await update.message.reply_text(
-                "🔒 প্রথমে আমাদের চ্যানেলে Join করুন।",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            return
-
-    except:
-        pass
-
-    keyboard = [
-
-        [
-            InlineKeyboardButton(
-                "🛒 Buy Account",
-                callback_data="buy"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "💰 Balance",
-                callback_data="balance"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "➕ Add Balance",
-                callback_data="deposit"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "📦 My Orders",
-                callback_data="orders"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "👤 Profile",
-                callback_data="profile"
-            )
-        ]
-
-    ]
-
-    await update.message.reply_text(
-
-        f"👋 Welcome {user.first_name}\n\n"
-        f"🛍 Easy Buy Account Store",
-
-        reply_markup=InlineKeyboardMarkup(keyboard)
-
+    cursor.execute(
+        "SELECT * FROM users WHERE user_id=?",
+        (user.id,)
     )
 
-# ==========================
-# CHECK JOIN
-# ==========================
+    if cursor.fetchone() is None:
 
-async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-
-    await query.answer()
-
-    user = query.from_user
-
-    try:
-
-        member = await context.bot.get_chat_member(
-            CHANNEL_USERNAME,
-            user.id
+        cursor.execute(
+            """
+            INSERT INTO users
+            VALUES(?,?,?,?,datetime('now'))
+            """,
+            (
+                user.id,
+                user.first_name,
+                user.username,
+                0
+            )
         )
 
-        if member.status not in ["left", "kicked"]:
+        db.commit()
 
-            keyboard = [
+def get_balance(user_id):
 
-                [
-                    InlineKeyboardButton(
-                        "🛒 Buy Account",
-                        callback_data="buy"
-                    )
-                ],
-
-                [
-                    InlineKeyboardButton(
-                        "💰 Balance",
-                        callback_data="balance"
-                    )
-                ],
-
-                [
-                    InlineKeyboardButton(
-                        "➕ Add Balance",
-                        callback_data="deposit"
-                    )
-                ],
-
-                [
-                    InlineKeyboardButton(
-                        "📦 My Orders",
-                        callback_data="orders"
-                    )
-                ],
-
-                [
-                    InlineKeyboardButton(
-                        "👤 Profile",
-                        callback_data="profile"
-                    )
-                ]
-
-            ]
-
-            await query.message.edit_text(
-
-                "✅ Verification Successful",
-
-                reply_markup=InlineKeyboardMarkup(keyboard)
-
-            )
-
-        else:
-
-            await query.answer(
-                "Join Channel First",
-                show_alert=True
-            )
-
-    except:
-
-        await query.answer(
-            "Try Again",
-            show_alert=True
-        )
-
-# ==========================
-# MAIN
-# ==========================
-
-app = Application.builder().token(BOT_TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-
-app.add_handler(
-    CallbackQueryHandler(
-        check_join,
-        pattern="check_join"
+    cursor.execute(
+        "SELECT balance FROM users WHERE user_id=?",
+        (user_id,)
     )
-)
 
-print("Bot Running...")
+    data = cursor.fetchone()
 
-app.run_polling()
+    if data:
+        return data[0]
+
+    return 0
