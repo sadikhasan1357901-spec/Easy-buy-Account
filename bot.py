@@ -409,6 +409,52 @@ async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+# ==========================================================
+# ADD BALANCE
+# ==========================================================
+
+async def deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    text = f"""
+💳 <b>Add Balance</b>
+
+নিচের যেকোনো নম্বরে টাকা পাঠান।
+
+📱 bKash: <code>{BKASH_NUMBER}</code>
+
+📱 Nagad: <code>{NAGAD_NUMBER}</code>
+
+টাকা পাঠানোর পর Transaction ID সাবমিট করুন।
+"""
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "🧾 Submit Transaction ID",
+                callback_data="submit_trx"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⬅ Back",
+                callback_data="back_home"
+            )
+        ]
+
+    ]
+
+    await query.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 
 # ==========================================================
 # RUN BOT
