@@ -650,6 +650,13 @@ app.add_handler(
     )
 )
 
+app.add_handler(
+    CommandHandler(
+        "admin",
+        admin_panel
+    )
+)
+
 print("Easy Buy Account Started...")
 
 app.run_polling()
