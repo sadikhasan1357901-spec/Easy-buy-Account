@@ -608,6 +608,14 @@ async def home_menu(message):
                 url=f"https://t.me/{SUPPORT.replace('@','')}"
             ),
 
+
+            [
+    InlineKeyboardButton(
+        "📦 My Orders",
+        callback_data="orders"
+    )
+],
+            
             InlineKeyboardButton(
                 "👥 Community",
                 url=CHANNEL_LINK
@@ -2305,6 +2313,122 @@ async def auto_delivery(update: Update, context: ContextTypes.DEFAULT_TYPE):
 <code>{account}</code>
 """,
         parse_mode=ParseMode.HTML
+    )
+
+# ==========================================================
+# MY ORDERS
+# ==========================================================
+
+async def my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    cursor.execute("""
+        SELECT
+            purchases.id,
+            products.name,
+            purchases.date
+        FROM purchases
+        JOIN products
+        ON purchases.product = products.id
+        WHERE purchases.user_id=?
+        ORDER BY purchases.id DESC
+    """, (query.from_user.id,))
+
+    rows = cursor.fetchall()
+
+    if not rows:
+
+        await query.message.edit_text(
+            "📦 আপনার এখনো কোনো Order নেই।"
+        )
+        return
+
+    keyboard = []
+
+    for order_id, product_name, order_date in rows:
+
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{product_name} | {order_date}",
+                callback_data=f"order_{order_id}"
+            )
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="home"
+        )
+    ])
+
+    await query.message.edit_text(
+        "📜 আপনার Order List",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# ORDER DETAILS
+# ==========================================================
+
+async def order_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    order_id = int(query.data.split("_")[1])
+
+    cursor.execute("""
+        SELECT
+            products.name,
+            purchases.account,
+            purchases.date
+        FROM purchases
+        JOIN products
+        ON purchases.product = products.id
+        WHERE purchases.id=?
+        AND purchases.user_id=?
+    """, (
+        order_id,
+        query.from_user.id
+    ))
+
+    row = cursor.fetchone()
+
+    if not row:
+
+        await query.answer(
+            "Order পাওয়া যায়নি।",
+            show_alert=True
+        )
+        return
+
+    product_name, account, order_date = row
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "⬅ Back",
+                callback_data="orders"
+            )
+        ]
+    ]
+
+    await query.message.edit_text(
+        f"""
+📦 Product
+{product_name}
+
+📅 Purchase Date
+{order_date}
+
+🔑 Delivered Account
+
+<code>{account}</code>
+""",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
