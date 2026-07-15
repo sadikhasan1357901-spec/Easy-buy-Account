@@ -65,7 +65,7 @@ DB_NAME = "digital_shop.db"
     # Stock Management
     STATE_STOCK_PROD_ID,
     STATE_STOCK_TXT,
-) = range(27)
+) = range(26)
 
 # ==========================================
 # DATABASE INITIALIZATION
