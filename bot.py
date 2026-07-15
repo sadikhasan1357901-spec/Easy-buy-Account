@@ -960,13 +960,13 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     )
 
-    db.commit()
+        db.commit()
 
     clear_state(context)
-context.user_data.clear()
+    context.user_data.clear()
 
     await update.message.reply_text(
-        "✅ Deposit Request সফলভাবে জমা হয়েছে।\n\nAdmin যাচাই করার পরে Balance যোগ করা হবে।"
+        "✅ Deposit Request সফলভাবে জমা হয়েছে。\n\nAdmin যাচাই করার পরে Balance যোগ করা হবে।"
     )
 
 # ==========================================================
