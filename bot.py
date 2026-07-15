@@ -12,7 +12,7 @@ from telegram import (
 from telegram.ext import (
     Application,
     CommandHandler,
-    8970306340,
+    CallbackQueryHandler,
     MessageHandler,
     ConversationHandler,
     ContextTypes,
