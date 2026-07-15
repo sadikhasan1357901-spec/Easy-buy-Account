@@ -232,7 +232,28 @@ status TEXT
 )
 
 """)
+# ==========================================================
+# REPLACE REQUESTS
+# ==========================================================
 
+cursor.execute("""
+
+CREATE TABLE IF NOT EXISTS replace_requests(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+order_id INTEGER,
+
+user_id INTEGER,
+
+reason TEXT,
+
+status TEXT DEFAULT 'Pending'
+created_at TEXT
+admin_note TEXT
+)
+
+""")
 # ==========================================================
 # SETTINGS
 # ==========================================================
@@ -2414,7 +2435,12 @@ async def order_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ]
     ]
-
+[
+    InlineKeyboardButton(
+        "♻ Replace",
+        callback_data=f"replace_{order_id}"
+    )
+],
     await query.message.edit_text(
         f"""
 📦 Product
@@ -2429,6 +2455,306 @@ async def order_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """,
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# REPLACE REQUEST
+# ==========================================================
+
+async def replace_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    order_id = int(query.data.split("_")[1])
+
+    cursor.execute("""
+        SELECT id
+        FROM purchases
+        WHERE id=? AND user_id=?
+    """, (order_id, query.from_user.id))
+
+    if not cursor.fetchone():
+
+        await query.answer(
+            "Order পাওয়া যায়নি।",
+            show_alert=True
+        )
+        return
+
+    context.user_data["replace_order"] = order_id
+
+    set_state(context, "replace_reason")
+
+    await query.message.edit_text(
+        "📝 Replace-এর কারণ লিখুন।"
+    )
+
+# ==========================================================
+# RECEIVE REPLACE REASON
+# ==========================================================
+
+async def receive_replace_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if get_state(context) != "replace_reason":
+        return
+
+    reason = update.message.text.strip()
+
+    if len(reason) < 5:
+
+        await update.message.reply_text(
+            "❌ অন্তত ৫ অক্ষরের কারণ লিখুন।"
+        )
+
+        return
+
+    order_id = context.user_data["replace_order"]
+
+    cursor.execute("""
+        INSERT INTO replace_requests(
+            order_id,
+            user_id,
+            reason,
+            status
+        )
+        VALUES(?,?,?,?)
+    """, (
+        order_id,
+        update.effective_user.id,
+        reason,
+        "Pending"
+    ))
+
+    db.commit()
+
+    clear_state(context)
+
+    context.user_data.clear()
+
+    await update.message.reply_text(
+        "✅ Replace Request পাঠানো হয়েছে।"
+    )
+
+# ==========================================================
+# REPLACE LIST
+# ==========================================================
+
+async def replace_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    cursor.execute("""
+        SELECT
+            id,
+            user_id,
+            status
+        FROM replace_requests
+        WHERE status='Pending'
+    """)
+
+    rows = cursor.fetchall()
+
+    if not rows:
+
+        await query.message.edit_text(
+            "✅ কোনো Pending Replace নেই।"
+        )
+
+        return
+
+    keyboard = []
+
+    for rid, uid, status in rows:
+
+        keyboard.append([
+
+            InlineKeyboardButton(
+                f"Replace #{rid}",
+                callback_data=f"replace_view_{rid}"
+            )
+
+        ])
+
+    await query.message.edit_text(
+
+        "♻ Pending Replace Requests",
+
+        reply_markup=InlineKeyboardMarkup(keyboard)
+
+    )
+
+# ==========================================================
+# VIEW REPLACE REQUEST
+# ==========================================================
+
+async def view_replace(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    replace_id = int(query.data.split("_")[2])
+
+    cursor.execute("""
+    SELECT
+        rr.id,
+        rr.user_id,
+        rr.order_id,
+        rr.reason,
+        p.product
+    FROM replace_requests rr
+    JOIN purchases p
+    ON rr.order_id = p.id
+    WHERE rr.id=?
+    """, (replace_id,))
+
+    row = cursor.fetchone()
+
+    if not row:
+        await query.answer("Request Not Found", show_alert=True)
+        return
+
+    rid, user_id, order_id, reason, product_id = row
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "✅ Approve",
+                callback_data=f"replace_ok_{rid}"
+            ),
+            InlineKeyboardButton(
+                "❌ Reject",
+                callback_data=f"replace_no_{rid}"
+            )
+        ]
+    ]
+
+    await query.message.edit_text(
+        f"""
+♻ Replace Request
+
+Request ID : {rid}
+
+User ID : {user_id}
+
+Order ID : {order_id}
+
+Reason :
+
+{reason}
+""",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ==========================================================
+# APPROVE REPLACE
+# ==========================================================
+
+async def approve_replace(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    replace_id = int(query.data.split("_")[2])
+
+    cursor.execute("""
+    SELECT
+        rr.user_id,
+        p.product
+    FROM replace_requests rr
+    JOIN purchases p
+    ON rr.order_id = p.id
+    WHERE rr.id=?
+    """, (replace_id,))
+
+    data = cursor.fetchone()
+
+    if not data:
+        return
+
+    user_id, product_id = data
+
+    cursor.execute("""
+    SELECT
+        id,
+        account
+    FROM stocks
+    WHERE product=?
+    AND status=0
+    LIMIT 1
+    """, (product_id,))
+
+    stock = cursor.fetchone()
+
+    if not stock:
+
+        await query.answer(
+            "Stock শেষ।",
+            show_alert=True
+        )
+
+        return
+
+    stock_id, account = stock
+
+    cursor.execute(
+        "UPDATE stocks SET status=1 WHERE id=?",
+        (stock_id,)
+    )
+
+    cursor.execute(
+        "UPDATE replace_requests SET status='Approved' WHERE id=?",
+        (replace_id,)
+    )
+
+    db.commit()
+
+    try:
+
+        await context.bot.send_message(
+
+            user_id,
+
+            f"""
+✅ Replace Approved
+
+নতুন Account
+
+<code>{account}</code>
+""",
+
+            parse_mode="HTML"
+
+        )
+
+    except:
+        pass
+
+    await query.message.edit_text(
+        "✅ Replace Approved."
+    )
+
+# ==========================================================
+# REJECT REPLACE
+# ==========================================================
+
+async def reject_replace(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    replace_id = int(query.data.split("_")[2])
+
+    cursor.execute(
+        "UPDATE replace_requests SET status='Rejected' WHERE id=?",
+        (replace_id,)
+    )
+
+    db.commit()
+
+    await query.message.edit_text(
+        "❌ Replace Rejected."
     )
 
 
