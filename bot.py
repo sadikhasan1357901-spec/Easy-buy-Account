@@ -960,7 +960,7 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     )
 
-        db.commit()
+    db.commit()
 
     clear_state(context)
     context.user_data.clear()
